@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"sample-project/config"
+	"sample-project/storage"
 )
 
 func main() {
@@ -13,5 +14,12 @@ func main() {
 		log.Fatal("config parse err: ", err)
 	}
 
-	fmt.Printf("%+v\n", conf)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
+		conf.DBUser, conf.DBPassword, conf.DBHost, conf.DBPort, conf.DBName)
+	store, err := storage.New(connStr)
+	if err != nil {
+		log.Fatal("create storage layer err: ", err)
+	}
+
+	defer store.Pool.Close()
 }

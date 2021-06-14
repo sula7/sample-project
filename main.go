@@ -1,7 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+
+	"sample-project/config"
+)
 
 func main() {
-	fmt.Println("Hello, sample project!")
+	conf, err := config.New()
+	if err != nil {
+		log.Fatal("config parse err: ", err)
+	}
+
+	fmt.Printf("%+v\n", conf)
 }

@@ -5,31 +5,65 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/github"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type (
 	Storager interface {
+		UpDBVersion(dsn string) error
+		SetDBVersion(dsn string, version uint) error
 	}
 	Storage struct {
 		Pool *pgxpool.Pool
 	}
 )
 
-func New(connStr string) (*Storage, error) {
+func New(dsn string) (*Storage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	pool, err := pgxpool.Connect(ctx, connStr)
+	pool, err := pgxpool.Connect(ctx, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("open db pool error: ", err)
+		return nil, fmt.Errorf("open db pool: %w", err)
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	err = pool.Ping(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("db pool opened but ping err: ", err)
+		return nil, fmt.Errorf("db ping: %w", err)
 	}
 
 	return &Storage{Pool: pool}, err
+}
+
+func (s *Storage) UpDBVersion(dsn string) error {
+	m, err := migrate.New("file://migrations", dsn)
+	if err != nil {
+		return fmt.Errorf("initialize migrations: %w", err)
+	}
+
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) SetDBVersion(dsn string, version uint) error {
+	m, err := migrate.New("file://migrations", dsn)
+	if err != nil {
+		return fmt.Errorf("initialize migrations: %w", err)
+	}
+
+	err = m.Migrate(version)
+	if err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
 }

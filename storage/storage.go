@@ -7,15 +7,14 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/golang-migrate/migrate/v4/source/github"
+	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type (
 	Storager interface {
-		UpDBVersion(dsn string) error
-		SetDBVersion(dsn string, version uint) error
+		UpDBVersion(dsn string, source source.Driver) error
+		SetDBVersion(dsn string, version uint, source source.Driver) error
 	}
 	Storage struct {
 		Pool *pgxpool.Pool
@@ -40,8 +39,8 @@ func New(dsn string) (*Storage, error) {
 	return &Storage{Pool: pool}, err
 }
 
-func (s *Storage) UpDBVersion(dsn string) error {
-	m, err := migrate.New("file://migrations", dsn)
+func (s *Storage) UpDBVersion(dsn string, source source.Driver) error {
+	m, err := migrate.NewWithSourceInstance("httpfs", source, dsn)
 	if err != nil {
 		return fmt.Errorf("initialize migrations: %w", err)
 	}
@@ -54,8 +53,8 @@ func (s *Storage) UpDBVersion(dsn string) error {
 	return nil
 }
 
-func (s *Storage) SetDBVersion(dsn string, version uint) error {
-	m, err := migrate.New("file://migrations", dsn)
+func (s *Storage) SetDBVersion(dsn string, version uint, source source.Driver) error {
+	m, err := migrate.NewWithSourceInstance("httpfs", source, dsn)
 	if err != nil {
 		return fmt.Errorf("initialize migrations: %w", err)
 	}

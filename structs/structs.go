@@ -24,7 +24,7 @@ type Drone struct {
 	Name             *string `json:"name"`
 	Description      *string `json:"description"`
 	Author           string  `json:"author"`
-	UserUUID         string `json:"-"`
+	UserUUID         string  `json:"-"`
 	Frame            *string `json:"frame"`
 	Motors           *string `json:"motors"`
 	ESC              *string `json:"esc"`

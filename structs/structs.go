@@ -1,5 +1,7 @@
 package structs
 
+import "github.com/go-ozzo/ozzo-validation/v4"
+
 type AuthToken struct {
 	AccessExpiresAt  int64
 	RefreshExpiresAt int64
@@ -37,4 +39,8 @@ type Drone struct {
 	ExtraEquipment   *string `json:"extra_equipment"`
 	CreatedAt        *string `json:"created_at"`
 	UpdatedAt        *string `json:"updated_at"`
+}
+
+func (d Drone) Validate() error {
+	return validation.ValidateStruct(&d, validation.Field(&d.Name, validation.Required))
 }

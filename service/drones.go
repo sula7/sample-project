@@ -16,6 +16,12 @@ func (api *APIv1) createDrone(c *gin.Context) {
 		return
 	}
 
+	err = drone.Validate()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, api.httpRespUnsuccessful(err.Error()))
+		return
+	}
+
 	userUUID, isExists := c.Get("user_uuid")
 	if !isExists {
 		c.JSON(http.StatusUnauthorized, api.httpRespUnsuccessful("Can't identify user"))

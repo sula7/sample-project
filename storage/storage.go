@@ -9,12 +9,18 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/jackc/pgx/v4/pgxpool"
+
+	"sample-project/structs"
 )
 
 type (
 	Storager interface {
 		UpDBVersion(dsn string, source source.Driver) error
 		SetDBVersion(dsn string, version uint, source source.Driver) error
+
+		CreateDrone(d *structs.Drone) error
+		GetUserUUID(u *structs.User) (string, error)
+		GetAllDrones() ([]structs.Drone, error)
 	}
 	Storage struct {
 		Pool *pgxpool.Pool

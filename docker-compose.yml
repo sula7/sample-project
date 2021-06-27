@@ -1,4 +1,4 @@
-version: '2.2'
+version: '3.8'
 
 services:
   db:
@@ -8,9 +8,18 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sample
     ports:
-      - "5432:5432"
+      - 5432:5432
     healthcheck:
       test: "pg_isready -U postgres -d sample"
       interval: 20s
       timeout: 20s
       retries: 5
+  token_storage:
+    depends_on:
+      - db
+    image: redis:6.2.4-alpine
+    environment:
+      REDIS_PASSWORD: redis
+    ports:
+      - 6379:6379
+    command: --requirepass redis

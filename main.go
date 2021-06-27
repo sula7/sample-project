@@ -10,6 +10,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/httpfs"
 
 	"sample-project/config"
+	"sample-project/service"
 	"sample-project/storage"
 )
 
@@ -53,4 +54,11 @@ func main() {
 		}
 		fmt.Println("WARNING! DB migrated into version ", dbVer)
 	}
+
+	redisClient, err := storage.NewRedis(conf.RedisAddr, conf.RedisPassword)
+	if err != nil {
+		log.Fatal("redis connect error: ", err)
+	}
+
+	log.Fatal(service.Start(store, redisClient))
 }

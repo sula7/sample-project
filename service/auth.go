@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/twinj/uuid"
 
 	"sample-project/structs"
@@ -45,49 +45,42 @@ func (api *APIv1) getAccessDetailsFromReq(r *http.Request) (*structs.AccessDetai
 	return &structs.AccessDetails{AccessUuid: accessUuid, UserUUID: userUUID}, nil
 }
 
-func (api *APIv1) login(c *gin.Context) {
-	user := structs.User{}
-	err := c.Bind(&user)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, api.httpRespUnsuccessful(err.Error()))
-		return
+func (api *APIv1) login(c echo.Context) error {
+	username, password := c.FormValue("username"), c.FormValue("password")
+	if username == "" || password == "" {
+		return c.JSON(http.StatusBadRequest, api.httpRespUnsuccessful("empty username or password"))
 	}
 
-	userUUID, err := api.store.GetUserUUID(&user)
+	userUUID, err := api.store.GetUserUUID(&structs.User{Username: username, Password: password})
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, api.httpRespUnsuccessful("incorrect login or password"))
-		return
+		return c.JSON(http.StatusUnauthorized, api.httpRespUnsuccessful("incorrect username or password"))
 	}
 
 	token, err := api.generateToken(userUUID)
 	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, api.httpRespUnsuccessful(err.Error()))
-		return
+		return c.JSON(http.StatusInternalServerError, api.httpRespUnsuccessful(err.Error()))
 	}
 
 	err = api.redisClient.RegisterAuth(userUUID, token)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, api.httpRespUnsuccessful(err.Error()))
-		return
+		return c.JSON(http.StatusInternalServerError, api.httpRespUnsuccessful(err.Error()))
 	}
 
-	c.JSON(http.StatusOK, api.httpRespSuccessful(token.AccessToken))
+	return c.JSON(http.StatusOK, api.httpRespSuccessful(token.AccessToken))
 }
 
-func (api *APIv1) logout(c *gin.Context) {
-	au, err := api.getAccessDetailsFromReq(c.Request)
+func (api *APIv1) logout(c echo.Context) error {
+	au, err := api.getAccessDetailsFromReq(c.Request())
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, "unauthorized")
-		return
+		return c.JSON(http.StatusUnauthorized, "unauthorized")
 	}
 
 	deleted, err := api.redisClient.DeleteAuth(au.AccessUuid)
 	if err != nil || deleted == 0 {
-		c.JSON(http.StatusUnauthorized, "unauthorized")
-		return
+		return c.JSON(http.StatusUnauthorized, "unauthorized")
 	}
 
-	c.JSON(http.StatusOK, &Response{Success: true, Message: "Successfully logged out"})
+	return c.JSON(http.StatusOK, &Response{Success: true, Message: "Successfully logged out"})
 }
 
 func (api *APIv1) generateToken(userUUID string) (*structs.AuthToken, error) {

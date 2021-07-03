@@ -1,7 +1,8 @@
 package service
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 
 	"sample-project/storage"
 )
@@ -21,13 +22,16 @@ type (
 func Start(store storage.Storager, redisClient storage.RedisStorager) error {
 	api := APIv1{store: store, redisClient: redisClient}
 
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 
-	router.POST("/login", api.login)
-	router.POST("/logout", api.tokenAuthMiddleware(), api.logout)
+	g := e.Group("/api/v1")
 
-	router.POST("/drones", api.tokenAuthMiddleware(), api.createDrone)
-	router.GET("/drones", api.tokenAuthMiddleware(), api.getAllDrones)
-	return router.Run(":8080")
+	g.POST("/login", api.login)
+	g.POST("/logout", api.logout, api.tokenAuthMiddleware)
+
+	g.POST("/drones", api.createDrone, api.tokenAuthMiddleware)
+	g.GET("/drones", api.getAllDrones, api.tokenAuthMiddleware)
+	return e.Start(":8080")
 }

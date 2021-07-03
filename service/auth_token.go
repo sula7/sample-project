@@ -7,22 +7,20 @@ import (
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 
 	"sample-project/structs"
 )
 
-func (api *APIv1) tokenAuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userUUID, err := api.verifyToken(c.Request)
+func (api *APIv1) tokenAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userUUID, err := api.verifyToken(c.Request())
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, api.httpRespUnsuccessful(err.Error()))
-			c.Abort()
-			return
+			return c.JSON(http.StatusUnauthorized, api.httpRespUnsuccessful(err.Error()))
 		}
 
 		c.Set("user_uuid", userUUID)
-		c.Next()
+		return next(c)
 	}
 }
 

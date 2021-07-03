@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -29,6 +30,10 @@ func (s fakeStorageRedis) RegisterAuth(userUUID string, token *structs.AuthToken
 
 func (s fakeStorageRedisErr) RegisterAuth(userUUID string, token *structs.AuthToken) error {
 	return errors.New("something gone wrong")
+}
+
+func (s fakeStorageRedis) DeleteAuth(accessUUID string) error {
+	return nil
 }
 
 func TestLogin(t *testing.T) {
@@ -92,7 +97,7 @@ func TestLogin(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			api := &APIv1{store: tc.storagePG, redisClient: tc.storageRD}
 
-			req := httptest.NewRequest(http.MethodPut, "/api/v1", nil)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1", nil)
 			req.Form = url.Values{"username": []string{tc.username}, "password": []string{tc.password}}
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			rec := httptest.NewRecorder()
@@ -105,6 +110,66 @@ func TestLogin(t *testing.T) {
 			assert.Equal(t, tc.statusCode, rec.Code)
 
 			resp := Response{}
+			assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+			assert.Equal(t, tc.isReqSuccess, resp.Success)
+			assert.Equal(t, tc.reqMessage, resp.Message)
+		})
+	}
+}
+
+func TestLogout(t *testing.T) {
+	fsRD := fakeStorageRedis{}
+	fsPG := fakeStoragePostgres{}
+
+	testCases := []struct {
+		name         string
+		statusCode   int
+		responseBody string
+		isReqSuccess bool
+		reqMessage   string
+		storagePG    storage.Storager
+		storageRD    storage.RedisStorager
+	}{
+		{
+			name:         "case success logout",
+			isReqSuccess: true,
+			reqMessage:   "OK",
+			statusCode:   http.StatusOK,
+			storageRD:    fsRD,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			api := &APIv1{redisClient: tc.storageRD, store: fsPG}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1", nil)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+
+			e := echo.New()
+			c := e.NewContext(req, rec)
+			c.SetPath("/logout")
+
+			req.Form = url.Values{"username": []string{"foo"}, "password": []string{"foobar"}}
+			assert.NoError(t, api.login(c))
+
+			resp := Response{}
+			assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+			assert.Equal(t, tc.isReqSuccess, resp.Success)
+			assert.Equal(t, tc.reqMessage, resp.Message)
+			assert.NotEmpty(t, resp.Data)
+
+			req.Header.Set("Authorization", fmt.Sprint("Bearer ", resp.Data))
+
+			// reset recorder & context after login to prevent response mixing
+			rec = httptest.NewRecorder()
+			c = e.NewContext(req, rec)
+			c.SetPath("/logout")
+			assert.NoError(t, api.logout(c))
+			assert.Equal(t, tc.statusCode, rec.Code)
+
+			resp = Response{}
 			assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 			assert.Equal(t, tc.isReqSuccess, resp.Success)
 			assert.Equal(t, tc.reqMessage, resp.Message)

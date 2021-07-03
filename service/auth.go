@@ -72,15 +72,15 @@ func (api *APIv1) login(c echo.Context) error {
 func (api *APIv1) logout(c echo.Context) error {
 	au, err := api.getAccessDetailsFromReq(c.Request())
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, "unauthorized")
+		return c.JSON(http.StatusUnauthorized, api.httpRespUnsuccessful(err.Error()))
 	}
 
-	deleted, err := api.redisClient.DeleteAuth(au.AccessUuid)
-	if err != nil || deleted == 0 {
-		return c.JSON(http.StatusUnauthorized, "unauthorized")
+	err = api.redisClient.DeleteAuth(au.AccessUuid)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, api.httpRespUnsuccessful(err.Error()))
 	}
 
-	return c.JSON(http.StatusOK, &Response{Success: true, Message: "Successfully logged out"})
+	return c.JSON(http.StatusOK, &Response{Success: true, Message: "OK"})
 }
 
 func (api *APIv1) generateToken(userUUID string) (*structs.AuthToken, error) {

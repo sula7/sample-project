@@ -14,7 +14,7 @@ type (
 	RedisStorager interface {
 		FetchAuth(authD *structs.AccessDetails) error
 		RegisterAuth(userUUID string, token *structs.AuthToken) error
-		DeleteAuth(givenUuid string) (int64, error)
+		DeleteAuth(accessUUID string) error
 	}
 	TokenStorage struct {
 		client *redis.Client
@@ -70,13 +70,13 @@ func (s *TokenStorage) RegisterAuth(userUUID string, token *structs.AuthToken) e
 	return err
 }
 
-func (s *TokenStorage) DeleteAuth(givenUuid string) (int64, error) {
+func (s *TokenStorage) DeleteAuth(accessUUID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	deleted, err := s.client.Del(ctx, givenUuid).Result()
+	err := s.client.Del(ctx, accessUUID).Err()
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return deleted, nil
+	return nil
 }
